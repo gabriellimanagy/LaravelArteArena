@@ -27,7 +27,7 @@
         </div>
     </nav>
     <div class="container mt-4">
-        <h1>Consulta de CEP</h1>
+        <h1>Calcular Frete</h1>
         <div class="row">
             <div class="col-md-6">
                 <form id="produto-form" method="POST" action="">
@@ -107,6 +107,13 @@
                 </form>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Transportadoras:</h3>
+                <div id="cardsContainer"></div>
+            </div>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
@@ -129,6 +136,17 @@
                 } else if (produto === 'produto3') {
                     $('#valor').val('20.00');
                     $('#peso').val('0.5');
+                } else {
+                    // Realizar requisição AJAX para obter dados do produto do Tiny API
+                    $.get('https://api.tiny.com.br/api2/produto.obter.php', {
+                        token: 'bc3cdea243d8687963fa642580057531456d34fa',
+                        id: produto,
+                        formato: 'json'
+                    }, function(response) {
+                        var produtoData = JSON.parse(response);
+                        $('#valor').val(produtoData.retorno.produto.preco);
+                        $('#peso').val(produtoData.retorno.produto.peso_bruto);
+                    });
                 }
             }
 
@@ -167,6 +185,81 @@
 
             $('#cep').on('blur', function() {
                 consultarCep();
+            });
+
+            $('#cep').on('blur', function(event) {
+                event.preventDefault();
+
+                const url = "http://f877-2804-1b3-a243-1d72-a82d-dfdd-5cdb-55d2.ngrok-free.app/consultar-kangu";
+                const cepOrigem = "04781000";
+                const cepDestino = $('#cep').val();
+                const produto = [
+                    {
+                        peso: 10,
+                        valor: 600,
+                        quantidade: 1
+                    }
+                ];
+                const bodyData = {
+                    cepOrigem: cepOrigem,
+                    cepDestino: cepDestino,
+                    produtos: produto
+                };
+
+                fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(bodyData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        const transportadoras = data.transporte;
+
+                        const cardsContainer = document.getElementById("cardsContainer");
+
+                        while (cardsContainer.firstChild) {
+                            cardsContainer.removeChild(cardsContainer.firstChild);
+                        }
+
+                        // Iterar sobre as transportadoras e criar os cards
+                        transportadoras.forEach(transportadora => {
+                            // Criar o elemento do card
+                            const cardElement = document.createElement("div");
+                            cardElement.classList.add("card");
+                            cardElement.style.margin = "auto";
+
+                            // Criar os elementos para exibir os dados relevantes da transportadora
+                            const nomeElement = document.createElement("h3");
+                            nomeElement.textContent = transportadora.nome;
+
+                            const logoElement = document.createElement("img");
+                            logoElement.src = transportadora.logo;
+                            logoElement.style.width = "140px"; // Defina a largura desejada
+                            logoElement.style.height = "auto"; // A altura será ajustada proporcionalmente
+
+                            const valorFreteElement = document.createElement("p");
+                            valorFreteElement.textContent = `Valor do Frete: ${transportadora.valorFrete}`;
+
+                            const prazoEntregaElement = document.createElement("p");
+                            prazoEntregaElement.textContent = `Prazo de Entrega: ${transportadora.prazoEntrega} dias`;
+
+                            const dataPrevEntregaElement = document.createElement("p");
+                            dataPrevEntregaElement.textContent = `Previsão de Entrega: ${transportadora.dataPrevEntrega}`;
+
+                            // Adicionar os elementos do card à div do container
+                            cardElement.appendChild(nomeElement);
+                            cardElement.appendChild(logoElement);
+                            cardElement.appendChild(valorFreteElement);
+                            cardElement.appendChild(prazoEntregaElement);
+                            cardElement.appendChild(dataPrevEntregaElement);
+
+                            // Adicionar o card ao container na página
+                            cardsContainer.appendChild(cardElement);
+                        });
+                    })
+                    .catch(error => console.error(error));
             });
         });
     </script>
